@@ -1,140 +1,184 @@
-from tkinter import *
+import tkinter as tk
+from tkinter import messagebox
 import random
+from PIL import Image, ImageTk
+import time
 
-# Window setup
-window = Tk()
-window.title("Snake Game")
-window.resizable(False, False)
+root = tk.Tk()
+root.title("Snake & Ladders Deluxe")
+root.geometry("900x650")
 
-GAME_WIDTH = 600
-GAME_HEIGHT = 600
-SPEED = 100
-SPACE_SIZE = 20
-BODY_PARTS = 3
-SNAKE_COLOR = "#00FF00"
-FOOD_COLOR = "#FF0000"
-BACKGROUND_COLOR = "#000000"
+canvas = tk.Canvas(root,width=600,height=600,bg="white")
+canvas.pack(side=tk.LEFT)
 
-score = 0
-direction = 'down'
+frame = tk.Frame(root)
+frame.pack(side=tk.RIGHT,padx=20)
 
-canvas = Canvas(window, bg=BACKGROUND_COLOR, height=GAME_HEIGHT, width=GAME_WIDTH)
-canvas.pack()
+cell = 60
 
-class Snake:
-    def __init__(self):
-        self.body_size = BODY_PARTS
-        self.coordinates = []
-        self.squares = []
+snakes = {16:6, 47:26, 49:11, 56:53, 62:19,
+          64:60, 87:24, 93:73, 95:75, 98:78}
 
-        for i in range(0, BODY_PARTS):
-            self.coordinates.append([0, 0])
+ladders = {1:38, 4:14, 9:31, 21:42, 28:84,
+           36:44, 51:67, 71:91, 80:100}
 
-        for x, y in self.coordinates:
-            square = canvas.create_rectangle(x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=SNAKE_COLOR)
-            self.squares.append(square)
+player1_pos = 0
+player2_pos = 0
+turn = 1
 
-class Food:
-    def __init__(self):
-        x = random.randint(0, (GAME_WIDTH/SPACE_SIZE)-1) * SPACE_SIZE
-        y = random.randint(0, (GAME_HEIGHT/SPACE_SIZE)-1) * SPACE_SIZE
+# LOAD DICE
+dice_img=[]
+for i in range(1,7):
+    img=Image.open(f"dice{i}.png")
+    img=img.resize((100,100))
+    dice_img.append(ImageTk.PhotoImage(img))
 
-        self.coordinates = [x, y]
+# LOAD SNAKE IMAGE
 
-        canvas.create_rectangle(x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=FOOD_COLOR, tag="food")
 
-def next_turn(snake, food):
+dice_label=tk.Label(frame,image=dice_img[0])
+dice_label.pack(pady=20)
 
-    x, y = snake.coordinates[0]
+turn_label=tk.Label(frame,text="Player 1 Turn",font=("Arial",18))
+turn_label.pack()
 
-    if direction == "up":
-        y -= SPACE_SIZE
-    elif direction == "down":
-        y += SPACE_SIZE
-    elif direction == "left":
-        x -= SPACE_SIZE
-    elif direction == "right":
-        x += SPACE_SIZE
+# BOARD
+def draw_board():
+    num=100
+    for row in range(10):
+        if row%2==0:
+            cols=range(10)
+        else:
+            cols=range(9,-1,-1)
 
-    snake.coordinates.insert(0, (x, y))
+        for col in cols:
+            x1=col*cell
+            y1=row*cell
+            x2=x1+cell
+            y2=y1+cell
+            canvas.create_rectangle(x1,y1,x2,y2,fill="#d1e7dd")
+            canvas.create_text(x1+30,y1+30,text=str(num))
+            num-=1
 
-    square = canvas.create_rectangle(x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=SNAKE_COLOR)
+draw_board()
 
-    snake.squares.insert(0, square)
+def get_coords(pos):
+    if pos==0:
+        return (10,550)
+    pos-=1
+    row=9-(pos//10)
+    col=pos%10
+    if (pos//10)%2==1:
+        col=9-col
+    x=col*60+15
+    y=row*60+15
+    return x,y
 
-    if x == food.coordinates[0] and y == food.coordinates[1]:
+# DRAW SNAKES
+def draw_snakes():
+    for head,tail in snakes.items():
+        x1,y1=get_coords(head)
+        x2,y2=get_coords(tail)
+        canvas.create_line(x1+15,y1+15,x2+15,y2+15,
+                           width=6,fill="red",smooth=True) 
 
-        global score
+# DRAW LADDERS
+def draw_ladders():
+    for start,end in ladders.items():
+        x1,y1=get_coords(start)
+        x2,y2=get_coords(end)
+        canvas.create_line(x1,y1,x2,y2,width=5,fill="yellow")
+        canvas.create_line(x1+10,y1,x2+10,y2,width=5,fill="yellow")
 
-        score += 1
+draw_snakes()
+draw_ladders()
 
-        canvas.delete("food")
 
-        food = Food()
+# TOKENS
+p1=canvas.create_oval(10,550,40,580,fill="red")
+p2=canvas.create_oval(50,550,80,580,fill="blue")
+
+# ANIMATION
+def animate(token,start,end):
+    for i in range(start+1,end+1):
+        x,y=get_coords(i)
+        canvas.coords(token,x,y,x+30,y+30)
+        root.update()
+        time.sleep(0.15)
+
+# DICE ROLL ANIMATION
+def roll_animation(final):
+    for _ in range(10):
+        rand=random.randint(0,5)
+        dice_label.config(image=dice_img[rand])
+        root.update()
+        time.sleep(0.08)
+    dice_label.config(image=dice_img[final-1])
+
+# DICE ROLL
+def roll_dice():
+    global player1_pos,player2_pos,turn
+
+    dice=random.randint(1,6)
+    roll_animation(dice)
+
+    if turn==1:
+        if player1_pos+dice<=100:
+            animate(p1,player1_pos,player1_pos+dice)
+            player1_pos+=dice
+
+            if player1_pos in snakes:
+                animate(p1,player1_pos,snakes[player1_pos])
+                player1_pos=snakes[player1_pos]
+
+            elif player1_pos in ladders:
+                animate(p1,player1_pos,ladders[player1_pos])
+                player1_pos=ladders[player1_pos]
+
+        if player1_pos==100:
+            messagebox.showinfo("Winner","Player 1 Wins!")
+            return
+
+        turn=2
+        turn_label.config(text="Player 2 Turn")
 
     else:
+        if player2_pos+dice<=100:
+            animate(p2,player2_pos,player2_pos+dice)
+            player2_pos+=dice
 
-        del snake.coordinates[-1]
+            if player2_pos in snakes:
+                animate(p2,player2_pos,snakes[player2_pos])
+                player2_pos=snakes[player2_pos]
 
-        canvas.delete(snake.squares[-1])
+            elif player2_pos in ladders:
+                animate(p2,player2_pos,ladders[player2_pos])
+                player2_pos=ladders[player2_pos]
 
-        del snake.squares[-1]
+        if player2_pos==100:
+            messagebox.showinfo("Winner","Player 2 Wins!")
+            return
 
-    if check_collisions(snake):
-        game_over()
+        turn=1
+        turn_label.config(text="Player 1 Turn")
 
-    else:
-        window.after(SPEED, next_turn, snake, food)
+def restart():
+    global player1_pos,player2_pos,turn
+    player1_pos=0
+    player2_pos=0
+    turn=1
+    canvas.coords(p1,10,550,40,580)
+    canvas.coords(p2,50,550,80,580)
+    turn_label.config(text="Player 1 Turn")
 
-def change_direction(new_direction):
+btn=tk.Button(frame,text="ROLL DICE",
+              command=roll_dice,font=("Arial",16),
+              bg="green",fg="white")
+btn.pack(pady=20)
 
-    global direction
+restart_btn=tk.Button(frame,text="RESTART",
+                      command=restart,font=("Arial",16),
+                      bg="red",fg="white")
+restart_btn.pack()
 
-    if new_direction == 'left':
-        if direction != 'right':
-            direction = new_direction
-
-    elif new_direction == 'right':
-        if direction != 'left':
-            direction = new_direction
-
-    elif new_direction == 'up':
-        if direction != 'down':
-            direction = new_direction
-
-    elif new_direction == 'down':
-        if direction != 'up':
-            direction = new_direction
-
-def check_collisions(snake):
-
-    x, y = snake.coordinates[0]
-
-    if x < 0 or x >= GAME_WIDTH:
-        return True
-    elif y < 0 or y >= GAME_HEIGHT:
-        return True
-
-    for body_part in snake.coordinates[1:]:
-        if x == body_part[0] and y == body_part[1]:
-            return True
-
-    return False
-
-def game_over():
-
-    canvas.delete(ALL)
-    canvas.create_text(GAME_WIDTH/2, GAME_HEIGHT/2,
-                       font=('Arial',40), text="GAME OVER", fill="red")
-
-snake = Snake()
-food = Food()
-
-window.bind('<Left>', lambda event: change_direction('left'))
-window.bind('<Right>', lambda event: change_direction('right'))
-window.bind('<Up>', lambda event: change_direction('up'))
-window.bind('<Down>', lambda event: change_direction('down'))
-
-next_turn(snake, food)
-
-window.mainloop()
+root.mainloop()
