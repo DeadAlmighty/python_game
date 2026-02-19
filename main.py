@@ -20,6 +20,13 @@ title=tk.Label(frame,text="🐍 Snake & Ladder",
                fg="white",bg="#2c2f33")
 title.pack(pady=10)
 
+dice_box = tk.Frame(frame,width=160,height=200,
+                    bg="#2c2f33")
+dice_box.pack(pady=10)
+
+dice_box.pack_propagate(False)
+
+
 cell=60
 
 snakes={16:6,47:26,49:11,85:56,62:19,
@@ -41,9 +48,10 @@ for i in range(1,7):
     img=img.resize((100,100))
     dice_img.append(ImageTk.PhotoImage(img))
 
-dice_label=tk.Label(frame,image=dice_img[0],
+dice_label=tk.Label(dice_box,image=dice_img[0],
                     bg="#2c2f33")
-dice_label.pack(pady=20)
+dice_label.place(relx=0.5,y=20,anchor="n")
+
 
 turn_label=tk.Label(frame,text="Select Players",
                     font=("Arial",18,"bold"),
@@ -118,12 +126,35 @@ def roll_animation(final,callback=None):
         if count==0:
             dice_label.config(image=dice_img[final-1])
             if callback:
-                root.after(400,callback)   # ⭐ delay after dice
+                dice_bounce(lambda:root.after(200,callback))
+            else:
+                dice_bounce()
             return
+
         dice_label.config(image=random.choice(dice_img))
         count-=1
         root.after(80,spin)
     spin()
+
+def dice_bounce(callback=None):
+
+    positions=[20,40,60,40,30,25,20]
+    i=0
+
+    def bounce():
+        nonlocal i
+        if i>=len(positions):
+            if callback:
+                callback()
+            return
+
+        dice_label.place_configure(y=positions[i])
+        i+=1
+        root.after(40,bounce)
+
+    bounce()
+
+
 
 def finish_turn():
     global turn
