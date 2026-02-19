@@ -29,13 +29,11 @@ turn = 1
 # LOAD DICE
 dice_img=[]
 for i in range(1,7):
-    img=Image.open(f"dice{i}.png")
+    img=Image.open(f"images/dice{i}.png")
     img=img.resize((100,100))
     dice_img.append(ImageTk.PhotoImage(img))
 
 # LOAD SNAKE IMAGE
-
-
 dice_label=tk.Label(frame,image=dice_img[0])
 dice_label.pack(pady=20)
 
