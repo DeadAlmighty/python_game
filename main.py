@@ -142,25 +142,38 @@ def start_game(players):
 
 # ⭐ PLAYER POPUP
 def player_popup():
+
     popup=tk.Toplevel(root)
     popup.title("Select Players")
     popup.geometry("300x200")
+    popup.configure(bg="#2c2f33")
 
-    tk.Label(popup,text="Select Number of Players",
-             font=("Arial",14)).pack(pady=20)
+    popup.grab_set()            # BLOCK ROOT WINDOW
+    popup.focus_force()         # FORCE FOCUS
+    popup.attributes("-topmost",True)  # ALWAYS ON TOP
+
+    tk.Label(popup,
+             text="Select Number of Players",
+             font=("Arial",14,"bold"),
+             fg="white",
+             bg="#2c2f33").pack(pady=20)
 
     def choose(n):
         start_game(n)
         popup.destroy()
 
     tk.Button(popup,text="2 Players",
-              command=lambda:choose(2)).pack(pady=5)
+              command=lambda:choose(2),
+              width=15).pack(pady=5)
 
     tk.Button(popup,text="3 Players",
-              command=lambda:choose(3)).pack(pady=5)
+              command=lambda:choose(3),
+              width=15).pack(pady=5)
 
     tk.Button(popup,text="4 Players",
-              command=lambda:choose(4)).pack(pady=5)
+              command=lambda:choose(4),
+              width=15).pack(pady=5)
+
 
 # MULTIPLAYER DICE ROLL
 def roll_dice():
@@ -243,6 +256,5 @@ restart_btn=tk.Button(frame,
 restart_btn.pack()
 
 # ⭐ CALL POPUP AT START
-player_popup()
-
+root.after(200,player_popup)
 root.mainloop()
