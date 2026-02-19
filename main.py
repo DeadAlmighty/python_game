@@ -5,26 +5,36 @@ from PIL import Image, ImageTk
 import time
 
 root = tk.Tk()
+root.configure(bg="#2c2f33")
 root.title("Snake & Ladders Deluxe")
 root.geometry("900x650")
 
-canvas = tk.Canvas(root,width=600,height=600,bg="white")
+canvas = tk.Canvas(root,width=600,height=600,
+                   bg="#23272a",highlightthickness=0)
 canvas.pack(side=tk.LEFT)
 
-frame = tk.Frame(root)
+frame = tk.Frame(root,bg="#2c2f33")
 frame.pack(side=tk.RIGHT,padx=20)
+title=tk.Label(frame,text="🐍 Snake & Ladder",
+               font=("Arial",24,"bold"),
+               fg="white",bg="#2c2f33")
+title.pack(pady=10)
+
 
 cell = 60
 
-snakes = {16:6, 47:26, 49:11, 56:53, 62:19,
+snakes = {16:6, 47:26, 49:11, 85:56, 62:19,
           64:60, 87:24, 93:73, 95:75, 98:78}
 
 ladders = {1:38, 4:14, 9:31, 21:42, 28:84,
            36:44, 51:67, 71:91, 80:100}
 
-player1_pos = 0
-player2_pos = 0
-turn = 1
+# ⭐ MULTIPLAYER VARIABLES
+positions=[]
+tokens=[]
+turn=0
+num_players=0
+colors=["red","blue","green","purple"]
 
 # LOAD DICE
 dice_img=[]
@@ -33,11 +43,15 @@ for i in range(1,7):
     img=img.resize((100,100))
     dice_img.append(ImageTk.PhotoImage(img))
 
-# LOAD SNAKE IMAGE
-dice_label=tk.Label(frame,image=dice_img[0])
+dice_label=tk.Label(frame,image=dice_img[0],
+                    bg="#2c2f33")
 dice_label.pack(pady=20)
 
-turn_label=tk.Label(frame,text="Player 1 Turn",font=("Arial",18))
+turn_label=tk.Label(frame,
+                    text="Select Players",
+                    font=("Arial",18,"bold"),
+                    fg="cyan",
+                    bg="#2c2f33")
 turn_label.pack()
 
 # BOARD
@@ -48,13 +62,15 @@ def draw_board():
             cols=range(10)
         else:
             cols=range(9,-1,-1)
-
         for col in cols:
             x1=col*cell
             y1=row*cell
             x2=x1+cell
             y2=y1+cell
-            canvas.create_rectangle(x1,y1,x2,y2,fill="#d1e7dd")
+            color = "#99aab5" if (row+col)%2==0 else "#7289da"
+            canvas.create_rectangle(x1,y1,x2,y2,
+                        fill=color,
+                        outline="#2c2f33")
             canvas.create_text(x1+30,y1+30,text=str(num))
             num-=1
 
@@ -78,23 +94,18 @@ def draw_snakes():
         x1,y1=get_coords(head)
         x2,y2=get_coords(tail)
         canvas.create_line(x1+15,y1+15,x2+15,y2+15,
-                           width=6,fill="red",smooth=True) 
+                           width=7,fill="red",smooth=True)
 
 # DRAW LADDERS
 def draw_ladders():
     for start,end in ladders.items():
         x1,y1=get_coords(start)
         x2,y2=get_coords(end)
-        canvas.create_line(x1,y1,x2,y2,width=5,fill="yellow")
-        canvas.create_line(x1+10,y1,x2+10,y2,width=5,fill="yellow")
+        canvas.create_line(x1,y1,x2,y2,width=3,fill="yellow")
+        canvas.create_line(x1+10,y1,x2+10,y2,width=3,fill="yellow")
 
 draw_snakes()
 draw_ladders()
-
-
-# TOKENS
-p1=canvas.create_oval(10,550,40,580,fill="red")
-p2=canvas.create_oval(50,550,80,580,fill="blue")
 
 # ANIMATION
 def animate(token,start,end):
@@ -113,70 +124,125 @@ def roll_animation(final):
         time.sleep(0.08)
     dice_label.config(image=dice_img[final-1])
 
-# DICE ROLL
+# ⭐ START GAME AFTER SELECTION
+def start_game(players):
+    global num_players,positions,tokens,turn
+
+    num_players=players
+    positions=[0]*num_players
+    turn=0
+
+    for i in range(num_players):
+        token=canvas.create_oval(10+i*20,550,
+                                 40+i*20,580,
+                                 fill=colors[i])
+        tokens.append(token)
+
+    turn_label.config(text="Player 1 Turn")
+
+# ⭐ PLAYER POPUP
+def player_popup():
+    popup=tk.Toplevel(root)
+    popup.title("Select Players")
+    popup.geometry("300x200")
+
+    tk.Label(popup,text="Select Number of Players",
+             font=("Arial",14)).pack(pady=20)
+
+    def choose(n):
+        start_game(n)
+        popup.destroy()
+
+    tk.Button(popup,text="2 Players",
+              command=lambda:choose(2)).pack(pady=5)
+
+    tk.Button(popup,text="3 Players",
+              command=lambda:choose(3)).pack(pady=5)
+
+    tk.Button(popup,text="4 Players",
+              command=lambda:choose(4)).pack(pady=5)
+
+# MULTIPLAYER DICE ROLL
 def roll_dice():
-    global player1_pos,player2_pos,turn
+    global turn
+
+    if num_players==0:
+        return
 
     dice=random.randint(1,6)
     roll_animation(dice)
 
-    if turn==1:
-        if player1_pos+dice<=100:
-            animate(p1,player1_pos,player1_pos+dice)
-            player1_pos+=dice
+    current_pos=positions[turn]
 
-            if player1_pos in snakes:
-                animate(p1,player1_pos,snakes[player1_pos])
-                player1_pos=snakes[player1_pos]
+    if current_pos+dice<=100:
+        animate(tokens[turn],current_pos,current_pos+dice)
+        positions[turn]+=dice
 
-            elif player1_pos in ladders:
-                animate(p1,player1_pos,ladders[player1_pos])
-                player1_pos=ladders[player1_pos]
+        if positions[turn] in snakes:
+            animate(tokens[turn],positions[turn],
+                    snakes[positions[turn]])
+            positions[turn]=snakes[positions[turn]]
 
-        if player1_pos==100:
-            messagebox.showinfo("Winner","Player 1 Wins!")
-            return
+        elif positions[turn] in ladders:
+            animate(tokens[turn],positions[turn],
+                    ladders[positions[turn]])
+            positions[turn]=ladders[positions[turn]]
 
-        turn=2
-        turn_label.config(text="Player 2 Turn")
+    if positions[turn]==100:
+        messagebox.showinfo("Winner",
+                            f"Player {turn+1} Wins!")
+        return
 
-    else:
-        if player2_pos+dice<=100:
-            animate(p2,player2_pos,player2_pos+dice)
-            player2_pos+=dice
+    turn=(turn+1)%num_players
+    turn_label.config(
+    text=f"Player {turn+1} Turn",
+    fg=colors[turn])
 
-            if player2_pos in snakes:
-                animate(p2,player2_pos,snakes[player2_pos])
-                player2_pos=snakes[player2_pos]
-
-            elif player2_pos in ladders:
-                animate(p2,player2_pos,ladders[player2_pos])
-                player2_pos=ladders[player2_pos]
-
-        if player2_pos==100:
-            messagebox.showinfo("Winner","Player 2 Wins!")
-            return
-
-        turn=1
-        turn_label.config(text="Player 1 Turn")
 
 def restart():
-    global player1_pos,player2_pos,turn
-    player1_pos=0
-    player2_pos=0
-    turn=1
-    canvas.coords(p1,10,550,40,580)
-    canvas.coords(p2,50,550,80,580)
+    global positions,turn,tokens
+
+    for t in tokens:
+        canvas.delete(t)
+
+    tokens.clear()
+
+    positions=[0]*num_players
+    turn=0
+
+    for i in range(num_players):
+        token=canvas.create_oval(10+i*20,550,
+                                 40+i*20,580,
+                                 fill=colors[i])
+        tokens.append(token)
+
     turn_label.config(text="Player 1 Turn")
 
-btn=tk.Button(frame,text="ROLL DICE",
-              command=roll_dice,font=("Arial",16),
-              bg="green",fg="white")
+btn=tk.Button(frame,
+              text="🎲 ROLL DICE",
+              command=roll_dice,
+              font=("Arial",16,"bold"),
+              bg="#5865f2",
+              fg="white",
+              activebackground="#4752c4",
+              width=15,
+              relief="flat")
+
 btn.pack(pady=20)
 
-restart_btn=tk.Button(frame,text="RESTART",
-                      command=restart,font=("Arial",16),
-                      bg="red",fg="white")
+restart_btn=tk.Button(frame,
+                      text="🔁 RESTART",
+                      command=restart,
+                      font=("Arial",16,"bold"),
+                      bg="#ed4245",
+                      fg="white",
+                      activebackground="#c03537",
+                      width=15,
+                      relief="flat")
+
 restart_btn.pack()
+
+# ⭐ CALL POPUP AT START
+player_popup()
 
 root.mainloop()
