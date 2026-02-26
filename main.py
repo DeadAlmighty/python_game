@@ -91,6 +91,11 @@ def get_coords(pos):
         col=9-col
     return col*60+15,row*60+15
 
+def highlight_player():
+    for i in range(len(tokens)):
+        canvas.itemconfig(tokens[i],outline="black",width=1)
+    canvas.itemconfig(tokens[turn],outline="white",width=4)
+
 def draw_snakes():
     for h,t in snakes.items():
         x1,y1=get_coords(h)
@@ -107,23 +112,18 @@ def draw_ladders():
         canvas.create_line(x1+10,y1,x2+10,y2,width=3,fill="yellow")
 draw_ladders()
 
-# ⭐ FIXED ANIMATION
 def animate(token,start,end,callback=None):
-
     step = 1 if end > start else -1
     steps = list(range(start + step, end + step, step))
-
     def move():
         if not steps:
             if callback:
                 callback()
             return
-
         pos = steps.pop(0)
         x,y=get_coords(pos)
         canvas.coords(token,x,y,x+30,y+30)
         root.after(140,move)
-
     move()
 
 def roll_animation(final, callback=None):
@@ -142,6 +142,7 @@ def roll_animation(final, callback=None):
 
 def finish_turn():
     global turn
+    btn.config(state="normal")
     if positions[turn]==100:
         win_sound.play()
         messagebox.showinfo("Winner",f"Player {turn+1} Wins!")
@@ -149,11 +150,14 @@ def finish_turn():
     turn=(turn+1)%num_players
     turn_label.config(text=f"Player {turn+1} Turn",
                       fg=colors[turn])
+    highlight_player()
 
 def roll_dice():
     global turn
     if num_players==0:
         return
+
+    btn.config(state="disabled")
 
     dice=random.randint(1,6)
     dice_sound.play()
@@ -211,6 +215,7 @@ def restart():
                                  40+i*20,580,
                                  fill=colors[i])
         tokens.append(token)
+    highlight_player()
     turn_label.config(text="Player 1 Turn")
 
 def start_game(players):
@@ -223,6 +228,7 @@ def start_game(players):
                                  40+i*20,580,
                                  fill=colors[i])
         tokens.append(token)
+    highlight_player()
     turn_label.config(text="Player 1 Turn")
 
 def player_popup():
