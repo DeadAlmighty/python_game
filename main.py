@@ -2,6 +2,14 @@ import tkinter as tk
 from tkinter import messagebox
 import random
 from PIL import Image, ImageTk
+import pygame
+
+pygame.mixer.init()
+
+dice_sound = pygame.mixer.Sound("sounds/dice.wav")
+snake_sound = pygame.mixer.Sound("sounds/snake.wav")
+ladder_sound = pygame.mixer.Sound("sounds/ladder.wav")
+win_sound = pygame.mixer.Sound("sounds/win.wav")
 
 root = tk.Tk()
 root.configure(bg="#2c2f33")
@@ -26,7 +34,6 @@ dice_box.pack(pady=10)
 
 dice_box.pack_propagate(False)
 
-
 cell=60
 
 snakes={16:6,47:26,49:11,85:56,62:19,
@@ -41,7 +48,6 @@ turn=0
 num_players=0
 colors=["red","blue","green","purple"]
 
-# LOAD DICE
 dice_img=[]
 for i in range(1,7):
     img=Image.open(f"images/dice{i}.png")
@@ -51,7 +57,6 @@ for i in range(1,7):
 dice_label=tk.Label(dice_box,image=dice_img[0],
                     bg="#2c2f33")
 dice_label.place(relx=0.5,y=20,anchor="n")
-
 
 turn_label=tk.Label(frame,text="Select Players",
                     font=("Arial",18,"bold"),
@@ -74,7 +79,6 @@ def draw_board():
                                     outline="#2c2f33")
             canvas.create_text(x1+30,y1+30,text=str(num))
             num-=1
-
 draw_board()
 
 def get_coords(pos):
@@ -93,6 +97,7 @@ def draw_snakes():
         x2,y2=get_coords(t)
         canvas.create_line(x1+15,y1+15,x2+15,y2+15,
                            width=7,fill="red",smooth=True)
+draw_snakes()
 
 def draw_ladders():
     for s,e in ladders.items():
@@ -100,65 +105,45 @@ def draw_ladders():
         x2,y2=get_coords(e)
         canvas.create_line(x1,y1,x2,y2,width=3,fill="yellow")
         canvas.create_line(x1+10,y1,x2+10,y2,width=3,fill="yellow")
-
-draw_snakes()
 draw_ladders()
 
-# ⭐ SLOWER SMOOTH ANIMATION
+# ⭐ FIXED ANIMATION
 def animate(token,start,end,callback=None):
-    steps=list(range(start+1,end+1))
+
+    step = 1 if end > start else -1
+    steps = list(range(start + step, end + step, step))
+
     def move():
         if not steps:
             if callback:
                 callback()
             return
-        pos=steps.pop(0)
+
+        pos = steps.pop(0)
         x,y=get_coords(pos)
         canvas.coords(token,x,y,x+30,y+30)
-        root.after(140,move)   # ⭐ slowed movement
+        root.after(140,move)
+
     move()
 
-# ⭐ DICE ROLL WITH DELAY BEFORE MOVE
-def roll_animation(final,callback=None):
+def roll_animation(final, callback=None):
     count=10
     def spin():
         nonlocal count
         if count==0:
             dice_label.config(image=dice_img[final-1])
             if callback:
-                dice_bounce(lambda:root.after(200,callback))
-            else:
-                dice_bounce()
+                root.after(200,callback)
             return
-
         dice_label.config(image=random.choice(dice_img))
         count-=1
         root.after(80,spin)
     spin()
 
-def dice_bounce(callback=None):
-
-    positions=[20,40,60,40,30,25,20]
-    i=0
-
-    def bounce():
-        nonlocal i
-        if i>=len(positions):
-            if callback:
-                callback()
-            return
-
-        dice_label.place_configure(y=positions[i])
-        i+=1
-        root.after(40,bounce)
-
-    bounce()
-
-
-
 def finish_turn():
     global turn
     if positions[turn]==100:
+        win_sound.play()
         messagebox.showinfo("Winner",f"Player {turn+1} Wins!")
         return
     turn=(turn+1)%num_players
@@ -171,40 +156,48 @@ def roll_dice():
         return
 
     dice=random.randint(1,6)
+    dice_sound.play()
+
+    player_turn = turn
+    current = positions[player_turn]
 
     def move_player():
-        current=positions[turn]
 
-        if current+dice<=100:
+        if current + dice > 100:
+            finish_turn()
+            return
 
-            def after_move():
-                if positions[turn] in snakes:
-                    new=snakes[positions[turn]]
-                    animate(tokens[turn],
-                            positions[turn],
-                            new,
-                            finish_turn)
-                    positions[turn]=new
+        target = current + dice
 
-                elif positions[turn] in ladders:
-                    new=ladders[positions[turn]]
-                    animate(tokens[turn],
-                            positions[turn],
-                            new,
-                            finish_turn)
-                    positions[turn]=new
-                else:
+        def after_walk():
+            positions[player_turn] = target
+
+            if target in snakes:
+                snake_sound.play()
+                snake_target = snakes[target]
+
+                def after_snake():
+                    positions[player_turn] = snake_target
                     finish_turn()
 
-            positions[turn]+=dice
-            animate(tokens[turn],
-                    current,
-                    current+dice,
-                    after_move)
-        else:
-            finish_turn()
+                animate(tokens[player_turn],target,snake_target,after_snake)
 
-    roll_animation(dice,move_player)
+            elif target in ladders:
+                ladder_sound.play()
+                ladder_target = ladders[target]
+
+                def after_ladder():
+                    positions[player_turn] = ladder_target
+                    finish_turn()
+
+                animate(tokens[player_turn],target,ladder_target,after_ladder)
+
+            else:
+                finish_turn()
+
+        animate(tokens[player_turn],current,target,after_walk)
+
+    roll_animation(dice, move_player)
 
 def restart():
     global positions,turn,tokens
@@ -237,9 +230,6 @@ def player_popup():
     popup.title("Select Players")
     popup.geometry("300x200")
     popup.configure(bg="#2c2f33")
-    popup.grab_set()
-    popup.focus_force()
-    popup.attributes("-topmost",True)
     tk.Label(popup,text="Select Number of Players",
              font=("Arial",14,"bold"),
              fg="white",bg="#2c2f33").pack(pady=20)
