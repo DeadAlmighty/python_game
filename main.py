@@ -28,6 +28,15 @@ title=tk.Label(frame,text="🐍 Snake & Ladder",
                fg="white",bg="#2c2f33")
 title.pack(pady=10)
 
+# ⭐ TIMER
+timer=10
+timer_id=None
+timer_label=tk.Label(frame,text="Time:10",
+                     font=("Arial",16),
+                     fg="white",
+                     bg="#2c2f33")
+timer_label.pack()
+
 dice_box = tk.Frame(frame,width=160,height=200,
                     bg="#2c2f33")
 dice_box.pack(pady=10)
@@ -63,6 +72,16 @@ turn_label=tk.Label(frame,text="Select Players",
                     fg="cyan",
                     bg="#2c2f33")
 turn_label.pack()
+
+# ⭐ TIMER FUNCTION
+def countdown():
+    global timer,timer_id
+    if timer>0:
+        timer-=1
+        timer_label.config(text=f"Time:{timer}")
+        timer_id=root.after(1000,countdown)
+    else:
+        finish_turn()
 
 def draw_board():
     num=100
@@ -141,16 +160,34 @@ def roll_animation(final, callback=None):
     spin()
 
 def finish_turn():
-    global turn
+    global turn,timer,timer_id
+
+    if timer_id:
+        root.after_cancel(timer_id)
+
     btn.config(state="normal")
+
     if positions[turn]==100:
         win_sound.play()
+
+        for i in range(50):
+            canvas.create_oval(random.randint(0,600),
+                               random.randint(0,600),
+                               random.randint(0,600),
+                               random.randint(0,600),
+                               fill=random.choice(colors))
+
         messagebox.showinfo("Winner",f"Player {turn+1} Wins!")
         return
+
     turn=(turn+1)%num_players
     turn_label.config(text=f"Player {turn+1} Turn",
                       fg=colors[turn])
     highlight_player()
+
+    timer=10
+    timer_label.config(text="Time:10")
+    countdown()
 
 def roll_dice():
     global turn
@@ -204,12 +241,18 @@ def roll_dice():
     roll_animation(dice, move_player)
 
 def restart():
-    global positions,turn,tokens
+    global positions,turn,tokens,timer,timer_id
+
+    if timer_id:
+        root.after_cancel(timer_id)
+
     for t in tokens:
         canvas.delete(t)
     tokens.clear()
     positions=[0]*num_players
     turn=0
+    timer=10
+    timer_label.config(text="Time:10")
     for i in range(num_players):
         token=canvas.create_oval(10+i*20,550,
                                  40+i*20,580,
@@ -217,12 +260,19 @@ def restart():
         tokens.append(token)
     highlight_player()
     turn_label.config(text="Player 1 Turn")
+    countdown()
 
 def start_game(players):
-    global num_players,positions,tokens,turn
+    global num_players,positions,tokens,turn,timer,timer_id
+
+    if timer_id:
+        root.after_cancel(timer_id)
+
     num_players=players
     positions=[0]*num_players
     turn=0
+    timer=10
+    timer_label.config(text="Time:10")
     for i in range(num_players):
         token=canvas.create_oval(10+i*20,550,
                                  40+i*20,580,
@@ -230,6 +280,7 @@ def start_game(players):
         tokens.append(token)
     highlight_player()
     turn_label.config(text="Player 1 Turn")
+    countdown()
 
 def player_popup():
     popup=tk.Toplevel(root)
